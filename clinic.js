@@ -127,6 +127,14 @@
     step(2);
   });
 
+  // Demo: no camera, so "scanning" just reads the demo patient's Fabric ID.
+  function simulateScan() {
+    $("#fabric-id").value = D.fabricId;
+    $("#scan-form").requestSubmit();
+  }
+  $("#simulate-scan").addEventListener("click", simulateScan);
+  $("#simulate-scan-qr").addEventListener("click", simulateScan);
+
   function approved(keys) {
     closeScan();
     current = { keys: keys, sharedAt: new Date(), insuranceFixed: false };

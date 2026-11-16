@@ -100,7 +100,8 @@
     <div id="scan-step-1">
       <h2 class="h-m" id="scan-title">Scan Fabric ID</h2>
       <p class="small muted">Point the scanner at the QR code on the patient’s phone.</p>
-      <div class="scanner"><img src="assets/qr-code.svg" width="250" height="250" alt="" class="scanner__qr" /><span class="scanner__line"></span></div>
+      <button class="scanner" type="button" id="simulate-scan-qr" aria-label="Simulate scanning the patient's QR code"><img src="assets/qr-code.svg" width="250" height="250" alt="" class="scanner__qr" /><span class="scanner__line"></span></button>
+      <button class="btn btn--primary" type="button" id="simulate-scan">Simulate scan (demo)</button>
       <form id="scan-form" class="scan-form">
         <label class="label" for="fabric-id">Or enter the Fabric ID</label>
         <div class="scan-form__row">
