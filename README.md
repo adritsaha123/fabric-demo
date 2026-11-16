@@ -1,7 +1,10 @@
 # Fabric — mobile web demo
 
 Patients carry their health records on their phone and choose what each clinic sees.
-Plain HTML/CSS/JS with no build step. Live demo: https://adritsaha123.github.io/fabric-demo/
+Plain HTML/CSS/JS with no build step.
+
+- **Patient app:** https://adritsaha123.github.io/fabric-demo/patient/
+- **Clinic (doctor) portal:** https://adritsaha123.github.io/fabric-demo/clinic/
 
 | Page | Who | What |
 | --- | --- | --- |
