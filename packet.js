@@ -30,6 +30,10 @@
   }
 
   function render(opts) {
+    // In cloud mode the server sends only shared sections; fill the rest with empties.
+    ["allergies", "medications", "conditions", "immunizations", "records"].forEach(function (k) { if (!D[k]) D[k] = []; });
+    if (!D.intake) D.intake = {};
+    if (!D.insurance) D.insurance = {};
     var keys = opts.keys, pro = !!opts.pro, p = D.patient, ins = D.insurance;
     var sharedAt = opts.sharedAt || new Date();
     var expires = opts.expires || new Date(sharedAt.getTime() + 24 * 3600 * 1000);

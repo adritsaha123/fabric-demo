@@ -127,7 +127,13 @@
           sb.from("access_log").select("actor, detail, at").order("at", { ascending: false }).limit(5).then(unwrap)
         ]).then(function (r) {
           return {
-            active: r[0].map(function (c) { return { kind: "clinic", id: c.id, who: c.clinic_name, expires: new Date(c.expires_at) }; })
+            // One row per clinic, even after several check-ins. "End now" ends them all.
+            active: r[0].reduce(function (rows, c) {
+              var row = rows.filter(function (x) { return x.who === c.clinic_name; })[0], exp = new Date(c.expires_at);
+              if (row) { row.id += "," + c.id; if (exp > row.expires) row.expires = exp; }
+              else rows.push({ kind: "clinic", id: c.id, who: c.clinic_name, expires: exp });
+              return rows;
+            }, [])
               .concat(r[1].map(function (l) { return { kind: "link", id: l.token, who: "Shared link", expires: new Date(l.expires_at) }; })),
             log: r[2].map(function (l) { return { who: l.actor, detail: l.detail, at: new Date(l.at) }; })
           };
@@ -135,7 +141,7 @@
       },
       endAccess: function (kind, id) {
         return kind === "clinic"
-          ? rpc("end_consent", { p_request: id })
+          ? Promise.all(String(id).split(",").map(function (one) { return rpc("end_consent", { p_request: one }); }))
           : sb.from("share_links").update({ revoked: true }).eq("token", id).then(unwrap);
       },
       sharedSummary: function (params) {
