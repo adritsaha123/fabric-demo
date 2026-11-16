@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Momo+Trust+Display&family=Roboto:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body>
   <div class="phone" id="phone">
@@ -60,7 +60,7 @@
           <span class="label">Password</span>
           <span class="input"><img src="assets/icon-lock.svg" width="20" height="20" alt="" /><input type="password" name="password" placeholder="••••••••" autocomplete="current-password" required /></span>
         </label>
-        <a class="small link" href="#" data-toast="Password reset link sent (demo)">Forgot password?</a>
+        <button class="small link forgot" type="button" id="forgot">Forgot password?</button>
         <p class="form__error small" hidden></p>
         <button class="btn btn--primary" type="submit">Sign in</button>
       </form>
@@ -76,7 +76,7 @@
       </div>
       <div class="heading">
         <h1 class="h-xl">Create your account</h1>
-        <p class="body">Free for patients. Your records, wherever you go.</p>
+        <p class="body">Free for patients. Demo: use made-up details.</p>
       </div>
       <form class="form form--tight" id="signup-form" novalidate>
         <label class="field">
@@ -129,18 +129,29 @@
               <span>Step 2 of 3</span>
             </div>
             <p class="h-m">Brown Health → RI Hospital</p>
-            <p class="small">Your request was sent Nov 4. Most clinics respond within a few days — we’ll follow up for you.</p>
+            <p class="small">Sent Nov 4. We’ll follow up until it’s done.</p>
             <div class="progress"><div class="progress__fill"></div></div>
             <button class="btn btn--light" type="button" data-open="transfer">View transfer</button>
           </div>
         </div>
-        <button class="insurance" type="button" data-open="insurance">
-          <img src="assets/icon-card.svg" width="24" height="24" alt="" />
-          <span class="insurance__text">
-            <span class="title">Insurance card</span>
-            <span class="small">Blue Cross Blue Shield · Tap to show</span>
-          </span>
-        </button>
+        <div class="tiles">
+          <a class="insurance" href="#qr">
+            <img src="assets/icon-qr.svg" width="24" height="24" alt="" />
+            <span class="insurance__text">
+              <span class="title">Fabric ID</span>
+              <span class="small" data-bind="fabricId">FAB-7Q2K-91</span>
+            </span>
+            <img class="insurance__go" src="assets/icon-chevron-right.svg" width="20" height="20" alt="" />
+          </a>
+          <button class="insurance" type="button" data-open="insurance">
+            <img src="assets/icon-card.svg" width="24" height="24" alt="" />
+            <span class="insurance__text">
+              <span class="title">Insurance card</span>
+              <span class="small" data-bind="insurer">Blue Cross Blue Shield</span>
+            </span>
+            <img class="insurance__go" src="assets/icon-chevron-right.svg" width="20" height="20" alt="" />
+          </button>
+        </div>
       </div>
     </section>
 
@@ -149,7 +160,7 @@
       <div class="content">
         <div class="heading heading--tight">
           <h1 class="h-xl">Timeline</h1>
-          <p class="body">Every visit, result, and record in one place.</p>
+          <p class="body">Every visit and result in one place.</p>
         </div>
         <p class="filter small" hidden><span></span> <button type="button" class="link small" id="clear-filter">Clear</button></p>
         <div class="entries" id="entries">
@@ -174,10 +185,15 @@
         </div>
         <div class="details">
           <div class="details__row"><span>Primary care</span><span>Dr. Patel</span></div>
-          <div class="details__row"><span>Insurance</span><span>Blue Cross Blue Shield</span></div>
-          <div class="details__row"><span>Pharmacy</span><span>CVS · Thayer St</span></div>
-          <div class="details__row"><span>Emergency contact</span><button type="button" class="link body" id="emergency">Add contact</button></div>
+          <div class="details__row"><span>Insurance</span><span data-bind="insurer">Blue Cross Blue Shield</span></div>
+          <div class="details__row"><span>Pharmacy</span><span data-bind="pharmacy">CVS · Thayer St</span></div>
         </div>
+        <section class="access" aria-labelledby="access-title">
+          <h2 class="h-m" id="access-title">Who can see your records</h2>
+          <div class="details" id="access-active"></div>
+          <p class="label muted">RECENT ACTIVITY</p>
+          <div class="details" id="access-log"></div>
+        </section>
         <div class="spacer"></div>
         <button class="btn btn--secondary" type="button" id="logout">Log out</button>
       </div>
@@ -191,16 +207,15 @@
           <span class="h-m">Your Fabric ID</span>
         </a>
         <div class="qr__card">
-          <img class="qr__code" src="assets/qr-code.svg" width="250" height="250" alt="QR code for your Fabric ID" />
+          <div class="qr__code" id="qr-code" role="img" aria-label="QR code for your Fabric ID"><img src="assets/qr-code.svg" width="250" height="250" alt="" /></div>
           <p class="h-m" data-bind="fullName">Adrit Saha</p>
-          <p class="label qr__id">FAB-7Q2K-91</p>
-          <p class="small">Show this at check-in to share your records instantly.</p>
-          <p class="label qr__timer">Refreshes in <span id="qr-timer">5:00</span></p>
+          <p class="label qr__id" data-bind="fabricId">FAB-7Q2K-91</p>
+          <p class="small">Show this at check-in.</p>
         </div>
         <button class="btn btn--secondary" type="button" data-open="share-link">Share a link with any clinic</button>
         <div class="note">
           <img src="assets/icon-lock.svg" width="20" height="20" alt="" />
-          <p class="small">Code refreshes every 5 minutes. You choose what each clinic sees.</p>
+          <p class="small">Nothing is shared until you approve it here.</p>
         </div>
       </div>
     </section>
@@ -222,7 +237,10 @@
     <div class="toast small" id="toast" hidden></div>
   </div>
 
-  <script src="shared.js?v=4"></script>
-  <script src="app.js?v=4"></script>
+  <script src="config.js?v=5"></script>
+  <script src="shared.js?v=5"></script>
+  <script src="api.js?v=5"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

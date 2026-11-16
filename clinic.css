@@ -257,3 +257,12 @@ button.scanner:hover .scanner__qr { opacity: 1; }
 /* Narrow screens: the schedule table scrolls inside its card, not the whole page */
 .panel { overflow-x: auto; }
 @media (max-width: 860px) { .schedule td, .schedule th { padding-left: 8px; padding-right: 8px; } }
+
+/* v5: staff sign-in */
+.gate { display: flex; flex-direction: column; gap: 10px; }
+.gate .h-m { margin-bottom: 2px; }
+.gate .label { margin-top: 4px; }
+.gate__btns { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.btn[disabled] { opacity: 0.55; pointer-events: none; }
+.gate .input { font-family: inherit; letter-spacing: 0; }
+.gate { text-align: left; }

@@ -5,7 +5,7 @@
   var D = window.FABRIC_DATA;
 
   function esc(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
@@ -42,8 +42,9 @@
         '<div class="avatar h-m">' + esc(initials) + "</div>" +
         '<div class="pkt-head__main">' +
           '<p class="h-m">' + esc(p.name) + "</p>" +
-          '<p class="body pkt-head__meta">DOB ' + esc(p.dob) + " · " + age(p.dob) + " y · " + esc(p.sex) + " · " + esc(D.fabricId) + "</p>" +
-          '<p class="small">Shared by the patient at ' + time(sharedAt) + " · access ends " +
+          '<p class="body pkt-head__meta">' + [p.dob ? "DOB " + esc(p.dob) + " · " + age(p.dob) + " y" : "", esc(p.sex), esc(D.fabricId)]
+            .filter(Boolean).join(" · ") + "</p>" +
+          '<p class="small">Shared at ' + time(sharedAt) + " · access ends " +
             expires.toLocaleDateString([], { month: "short", day: "numeric" }) + ", " + time(expires) + "</p>" +
         "</div>" +
         '<span class="verified label">✓ Identity verified by Fabric</span>' +
@@ -58,15 +59,14 @@
     }
     if (keys.indexOf("insurance") !== -1 && pro) {
       alerts.push(opts.insuranceFixed
-        ? '<div class="alert alert--ok"><span class="alert__icon">✓</span><p class="alert__text body">Member ID updated in your system. This claim won’t bounce for an old ID.</p></div>'
-        : '<div class="alert alert--warn"><span class="alert__icon">⚠</span><p class="alert__text body"><strong>Insurance on file is out of date.</strong> On file: <code>' +
-          esc(ins.onFileMemberId) + "</code> → patient’s current card: <code>" + esc(ins.memberId) +
+        ? '<div class="alert alert--ok"><span class="alert__icon">✓</span><p class="alert__text body">Member ID updated. This claim won’t bounce.</p></div>'
+        : '<div class="alert alert--warn"><span class="alert__icon">⚠</span><p class="alert__text body"><strong>Member ID on file is out of date:</strong> <code>' +
+          esc(ins.onFileMemberId) + "</code> → <code>" + esc(ins.memberId) +
           '</code>. A claim with the old ID would likely be denied.</p><button class="btn btn--primary btn--sm" type="button" data-action="fix-insurance">Update record</button></div>');
     }
     if (!pro) {
-      alerts.push('<div class="alert alert--ok"><span class="alert__icon">i</span><p class="alert__text small">Free view for any clinic. ' +
-        'With <strong>Fabric for Clinics</strong>, this arrives in your records system automatically, insurance is verified, and intake is pre-filled. ' +
-        '<a class="link" href="clinic.html">See how it works</a></p></div>');
+      alerts.push('<div class="alert alert--ok"><span class="alert__icon">i</span><p class="alert__text small">Free view. <strong>Fabric for Clinics</strong> sends this straight to your records system, with insurance checked. ' +
+        '<a class="link" href="clinic.html">See how</a></p></div>');
     }
     h.push('<div class="alerts">' + alerts.join("") + "</div>");
 

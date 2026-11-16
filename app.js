@@ -1,31 +1,28 @@
 (function () {
   "use strict";
-
-  // ---------- Demo data ----------
-  var RECORDS = window.FABRIC_DATA.records; // shared with the clinic portal (shared.js)
-
-  var DEFAULT_USER = { name: "Adrit Saha", email: "adrit@example.com" };
+  var Api = window.FabricApi, D = window.FABRIC_DATA;
   var APP_SCREENS = ["home", "timeline", "profile", "qr"];
-  var STORAGE_KEY = "fabric-demo-user";
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   // ---------- Helpers ----------
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
   function esc(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
-
-  function loadUser() {
-    try { var raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return memUser; }
+  function when(d) {
+    var mins = Math.round((Date.now() - d) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + " min ago";
+    if (mins < 1440) return Math.round(mins / 60) + " h ago";
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
   }
-  var memUser = null;
-  function saveUser(u) {
-    memUser = u;
-    try { if (u) localStorage.setItem(STORAGE_KEY, JSON.stringify(u)); else localStorage.removeItem(STORAGE_KEY); } catch (e) { /* storage blocked: keep in memory */ }
+  function until(d) {
+    var h = Math.max(0, Math.round((d - Date.now()) / 3600000));
+    return h < 1 ? "Ends within the hour" : "Ends in " + h + " h";
   }
-  function currentUser() { return loadUser() || memUser; }
 
   var toastTimer;
   function toast(msg) {
@@ -34,20 +31,55 @@
     t.hidden = false;
     t.style.animation = "none"; void t.offsetWidth; t.style.animation = "";
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.hidden = true; }, 2200);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+  function busy(btn, label) {
+    var old = btn.textContent;
+    btn.disabled = true; btn.textContent = label;
+    return function () { btn.disabled = false; btn.textContent = old; };
   }
 
-  // ---------- User binding ----------
+  // ---------- Session ----------
+  var loaded = false, stopWatching = null;
+  function signedIn() { return Api.signedIn() && loaded; }
+  function afterSignIn() {
+    return Api.loadMyData().then(function (data) {
+      window.FabricData.load(data);
+      loaded = true;
+      qrFor = null;
+      if (!stopWatching) stopWatching = Api.watchRequests(onRequest);
+    });
+  }
+  function signOut() {
+    if (stopWatching) { stopWatching(); stopWatching = null; }
+    loaded = false;
+    return Api.signOut();
+  }
+
+  // ---------- Binding ----------
   function bindUser() {
-    var u = currentUser() || DEFAULT_USER;
-    var parts = u.name.trim().split(/\s+/);
-    var first = parts[0];
-    var rest = parts.slice(1).join(" ");
-    $$('[data-bind="firstName"]').forEach(function (el) { el.textContent = first; });
-    $$('[data-bind="fullName"]').forEach(function (el) { el.textContent = u.name; });
+    if (!D.patient) return;
+    var parts = D.patient.name.trim().split(/\s+/), first = parts[0], rest = parts.slice(1).join(" ");
+    var set = function (name, text) { $$('[data-bind="' + name + '"]').forEach(function (el) { el.textContent = text; }); };
+    set("firstName", first);
+    set("fullName", D.patient.name);
+    set("fabricId", D.fabricId);
+    set("insurer", D.insurance ? D.insurance.payer : "Not added");
+    set("pharmacy", D.intake ? D.intake.pharmacy.split(",")[0] : "Not added");
     $$('[data-bind="fullNameStacked"]').forEach(function (el) {
       el.innerHTML = esc(first) + (rest ? "<br />" + esc(rest) : "");
     });
+  }
+
+  var qrFor = null;
+  function renderQr() {
+    var box = $("#qr-code");
+    if (!window.QRCode || qrFor === D.fabricId) return;
+    box.innerHTML = "";
+    new window.QRCode(box, { text: D.fabricId, width: 250, height: 250, colorDark: "#31354a", colorLight: "#ffffff",
+      correctLevel: window.QRCode.CorrectLevel.M });
+    box.removeAttribute("title");
+    qrFor = D.fabricId;
   }
 
   // ---------- Timeline ----------
@@ -56,9 +88,8 @@
     var list = $("#entries");
     $$(".entry, .empty", list).forEach(function (n) { n.remove(); });
     var q = filterQuery.toLowerCase();
-    var items = RECORDS.filter(function (r) {
-      if (!q) return true;
-      return [r.title, r.provider, r.clinic, r.location, r.type, r.date].join(" ").toLowerCase().indexOf(q) !== -1;
+    var items = (D.records || []).filter(function (r) {
+      return !q || [r.title, r.provider, r.clinic, r.location, r.type, r.date].join(" ").toLowerCase().indexOf(q) !== -1;
     });
     list.classList.toggle("entries--filtered", !!q);
     var filterBar = $(".filter");
@@ -77,15 +108,35 @@
       b.type = "button";
       b.className = "entry";
       b.setAttribute("data-record", r.id);
-      var sub = r.providerShort ? r.providerShort + " · " + r.clinic : r.clinic;
       b.innerHTML =
         '<span class="entry__text">' +
           '<span class="label entry__date">' + esc(r.date) + "</span>" +
           '<span class="title">' + esc(r.title) + "</span>" +
-          '<span class="small">' + esc(sub) + "</span>" +
+          '<span class="small">' + esc(r.providerShort ? r.providerShort + " · " + r.clinic : r.clinic) + "</span>" +
         "</span>" +
         '<img src="assets/icon-chevron-right.svg" width="20" height="20" alt="" />';
       list.appendChild(b);
+    });
+  }
+
+  // ---------- Profile: who can see your records ----------
+  function renderAccess() {
+    Api.myAccess().then(function (a) {
+      $("#access-active").innerHTML = a.active.length
+        ? a.active.map(function (x) {
+            return '<div class="details__row"><span class="access__who"><span>' + esc(x.who) + '</span><span class="small muted">' +
+              until(x.expires) + '</span></span><button type="button" class="link small access__end" data-end="' + esc(x.kind) +
+              '" data-id="' + esc(x.id) + '">End now</button></div>';
+          }).join("")
+        : '<div class="details__row"><span class="muted">No one right now</span></div>';
+      $("#access-log").innerHTML = a.log.length
+        ? a.log.map(function (l) {
+            return '<div class="details__row"><span class="access__who"><span>' + esc(l.who) + '</span><span class="small muted">' +
+              esc(l.detail) + "</span></span><span class=\"small muted\">" + when(l.at) + "</span></div>";
+          }).join("")
+        : '<div class="details__row"><span class="muted">Nothing yet</span></div>';
+    }).catch(function () {
+      $("#access-active").innerHTML = '<div class="details__row"><span class="muted">Couldn’t load right now.</span></div>';
     });
   }
 
@@ -96,9 +147,7 @@
     $("#sheet-body").innerHTML = html;
     var scrim = $("#scrim"), sheet = $("#sheet");
     scrim.hidden = false; sheet.hidden = false;
-    requestAnimationFrame(function () {
-      scrim.classList.add("is-open"); sheet.classList.add("is-open");
-    });
+    requestAnimationFrame(function () { scrim.classList.add("is-open"); sheet.classList.add("is-open"); });
   }
   function closeSheet() {
     var scrim = $("#scrim"), sheet = $("#sheet");
@@ -106,11 +155,13 @@
     scrim.classList.remove("is-open"); sheet.classList.remove("is-open");
     sheetHideTimer = setTimeout(function () { scrim.hidden = true; sheet.hidden = true; }, 300);
   }
+  function sheetHead(kicker, title) {
+    return '<div class="sheet__title"><p class="label sheet__kicker">' + esc(kicker) + '</p><p class="h-m">' + esc(title) + "</p></div>";
+  }
 
-  // ---------- Sharing with clinics ----------
-  // Patients choose what each clinic sees, whether or not the clinic pays for Fabric.
+  // ---------- Sharing ----------
   function shareChecklist() {
-    return '<div class="share-list">' + window.FABRIC_DATA.shareItems.map(function (i) {
+    return '<div class="share-list">' + D.shareItems.map(function (i) {
       return '<label class="share-item"><input type="checkbox" name="share" value="' + i.key + '" checked />' +
         '<span class="checkbox"><img src="assets/icon-check.svg" width="16" height="16" alt="" /></span>' +
         "<span>" + esc(i.label) + "</span></label>";
@@ -119,121 +170,99 @@
   function checkedKeys() {
     return $$('#sheet-body input[name="share"]:checked').map(function (c) { return c.value; });
   }
+
   var pendingConsent = null;
-  function consentSheet(msg) {
-    return (
-      '<div class="sheet__title"><p class="label sheet__kicker">SHARE REQUEST</p><p class="h-m">' + esc(msg.clinic) + " wants to see your records</p></div>" +
-      '<p class="small">They scanned your Fabric ID at check-in. Choose what they can see. Access ends in 24 hours.</p>' +
-      shareChecklist() +
-      '<div class="sheet__actions"><button class="btn btn--primary" type="button" data-consent="approve">Share selected</button>' +
-      '<button class="btn btn--secondary" type="button" data-consent="decline">Don’t share</button></div>'
-    );
-  }
-  function shareLinkSheet() {
-    return (
-      '<div class="sheet__title"><p class="label sheet__kicker">SHARE WITH ANY CLINIC</p><p class="h-m">Create a secure link</p></div>' +
-      '<p class="small">Works at any clinic, even one that doesn’t use Fabric. They open it in a browser, with no account. It expires in 24 hours.</p>' +
-      shareChecklist() +
-      '<div class="sheet__actions"><button class="btn btn--primary" type="button" data-share-link>Create link and open it</button></div>'
-    );
-  }
-  window.FabricBus.on(function (msg) {
-    if (msg.type === "consent-request") {
-      if (!currentUser()) return; // signed out: the clinic can still use its demo fallback
-      pendingConsent = msg;
-      openSheet(consentSheet(msg));
-    } else if (msg.type === "consent-cancel" && pendingConsent && msg.requestId === pendingConsent.id) {
+  function onRequest(ev) {
+    if (ev.type === "request") {
+      if (!signedIn()) return;
+      pendingConsent = ev;
+      openSheet(
+        sheetHead("SHARE REQUEST", ev.clinic + " wants your records") +
+        '<p class="small">Choose what they can see. Access ends in 24 hours.</p>' +
+        shareChecklist() +
+        '<div class="sheet__actions"><button class="btn btn--primary" type="button" data-consent="approve">Share selected</button>' +
+        '<button class="btn btn--secondary" type="button" data-consent="decline">Don’t share</button></div>'
+      );
+    } else if (ev.type === "gone" && pendingConsent && ev.id === pendingConsent.id) {
       pendingConsent = null;
       closeSheet();
       toast("The clinic finished check-in");
     }
-  });
+  }
+
+  function shareLinkSheet() {
+    return sheetHead("SHARE WITH ANY CLINIC", "Create a secure link") +
+      '<p class="small">Opens in any browser, no account needed. Expires in 24 hours.</p>' +
+      shareChecklist() +
+      '<div class="sheet__actions"><button class="btn btn--primary" type="button" data-share-link>Create link</button></div>';
+  }
+  function linkReadySheet(url) {
+    return sheetHead("LINK READY", "Send this to the clinic") +
+      '<p class="share-url" id="share-url">' + esc(url) + "</p>" +
+      '<div class="sheet__actions"><button class="btn btn--primary" type="button" data-copy-link>Copy link</button>' +
+      '<a class="btn btn--secondary" href="' + esc(url) + '" target="_blank" rel="noopener">Open it</a></div>';
+  }
 
   function recordSheet(r) {
-    return (
-      '<div class="sheet__title"><p class="label sheet__kicker">' + esc(r.type) + '</p><p class="h-m">' + esc(r.title) + "</p></div>" +
+    return sheetHead(r.type, r.title) +
       '<div class="kv small">' +
         '<div class="kv__row"><span>Date</span><span>' + esc(r.date) + " · " + esc(r.time) + "</span></div>" +
         '<div class="kv__row"><span>Provider</span><span>' + esc(r.provider) + "</span></div>" +
         '<div class="kv__row"><span>Location</span><span>' + esc(r.location) + "</span></div>" +
       "</div>" +
-      '<p class="title">Visit summary</p>' +
       '<p class="body">' + esc(r.summary) + "</p>" +
-      '<button class="btn btn--primary" type="button" data-toast="Full record viewer coming soon (demo)">View full record</button>'
-    );
+      '<button class="btn btn--light" type="button" data-close>Close</button>';
   }
 
   function transferSheet() {
     var steps = [
-      ["done", "Request sent", "Nov 4 · Sent to Brown Health records office"],
-      ["current", "Clinic reviewing", "Typically 2–5 business days. We’ll follow up for you."],
-      ["todo", "Delivered to RI Hospital", "You’ll get a notification when records arrive."]
+      ["done", "Request sent", "Nov 4 · Brown Health records office"],
+      ["current", "Clinic reviewing", "Usually 2–5 business days"],
+      ["todo", "Delivered to RI Hospital", "We’ll notify you"]
     ];
-    return (
-      '<div class="sheet__title"><p class="label sheet__kicker">RECORDS TRANSFER</p><p class="h-m">Brown Health → RI Hospital</p></div>' +
+    return sheetHead("RECORDS TRANSFER", "Brown Health → RI Hospital") +
       '<div class="progress"><div class="progress__fill"></div></div>' +
-      '<div class="steps">' +
-        steps.map(function (s, i) {
-          return '<div class="step step--' + s[0] + '"><span class="step__dot">' + (s[0] === "done" ? "✓" : i + 1) + "</span>" +
-            '<span><p class="title">' + s[1] + '</p><p class="small">' + s[2] + "</p></span></div>";
-        }).join("") +
-      "</div>" +
-      '<div class="kv small">' +
-        '<div class="kv__row"><span>Records</span><span>All visits, labs, imaging</span></div>' +
-        '<div class="kv__row"><span>Requested</span><span>Nov 4, 2026</span></div>' +
-      "</div>" +
-      '<button class="btn btn--primary" type="button" data-toast="We nudged Brown Health for you (demo)">Send a reminder</button>'
-    );
+      '<div class="steps">' + steps.map(function (s, i) {
+        return '<div class="step step--' + s[0] + '"><span class="step__dot">' + (s[0] === "done" ? "✓" : i + 1) + "</span>" +
+          '<span><p class="title">' + s[1] + '</p><p class="small">' + s[2] + "</p></span></div>";
+      }).join("") + "</div>" +
+      '<button class="btn btn--primary" type="button" data-toast="Reminder sent to Brown Health">Send a reminder</button>';
   }
 
   function insuranceSheet() {
-    var u = currentUser() || DEFAULT_USER;
-    return (
-      '<div class="sheet__title"><p class="label sheet__kicker">INSURANCE</p><p class="h-m">Insurance card</p></div>' +
+    var i = D.insurance;
+    return sheetHead("INSURANCE", "Insurance card") +
       '<div class="ins-card">' +
-        '<div class="ins-card__row"><span class="title">Blue Cross Blue Shield</span><span class="label">PPO</span></div>' +
-        '<div><p class="label">MEMBER</p><p class="title">' + esc(u.name) + "</p></div>" +
+        '<div class="ins-card__row"><span class="title">' + esc(i.payer) + '</span><span class="label">' + esc(i.plan) + "</span></div>" +
+        '<div><p class="label">MEMBER</p><p class="title">' + esc(D.patient.name) + "</p></div>" +
         '<div class="ins-card__row">' +
-          '<div><p class="label">MEMBER ID</p><p class="body">XYZ 8842 1093</p></div>' +
-          '<div><p class="label">GROUP</p><p class="body">00417</p></div>' +
+          '<div><p class="label">MEMBER ID</p><p class="body">' + esc(i.memberId) + "</p></div>" +
+          '<div><p class="label">GROUP</p><p class="body">' + esc(i.group) + "</p></div>" +
         "</div>" +
       "</div>" +
-      '<p class="small">Show this card at the front desk. Demo data only.</p>' +
-      '<button class="btn btn--primary" type="button" data-close>Done</button>'
-    );
+      '<button class="btn btn--primary" type="button" data-close>Done</button>';
   }
 
-  // ---------- QR refresh countdown ----------
-  var qrInterval, qrRemaining = 300;
-  function startQrTimer() {
-    stopQrTimer();
-    qrRemaining = 300;
-    tickQr();
-    qrInterval = setInterval(function () {
-      qrRemaining -= 1;
-      if (qrRemaining <= 0) {
-        var code = $(".qr__code");
-        code.classList.add("is-refreshing");
-        setTimeout(function () { code.classList.remove("is-refreshing"); }, 400);
-        qrRemaining = 300;
-      }
-      tickQr();
-    }, 1000);
+  function newPasswordSheet() {
+    return sheetHead("ACCOUNT", "Set a new password") +
+      '<form class="form" id="new-password-form" novalidate>' +
+        '<label class="field"><span class="label">New password</span><span class="input">' +
+          '<img src="assets/icon-lock.svg" width="20" height="20" alt="" />' +
+          '<input type="password" name="password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required /></span></label>' +
+        '<p class="form__error small" hidden></p>' +
+        '<button class="btn btn--primary" type="submit">Save password</button>' +
+      "</form>";
   }
-  function tickQr() {
-    var m = Math.floor(qrRemaining / 60), s = qrRemaining % 60;
-    $("#qr-timer").textContent = m + ":" + (s < 10 ? "0" : "") + s;
-  }
-  function stopQrTimer() { clearInterval(qrInterval); }
 
   // ---------- Router ----------
   function route() {
-    var name = (location.hash || "").replace(/^#/, "") || (currentUser() ? "home" : "opening");
+    var name = (location.hash || "").replace(/^#/, "") || (signedIn() ? "home" : "opening");
     if (!$('[data-screen="' + name + '"]')) name = "opening";
-    if (APP_SCREENS.indexOf(name) !== -1 && !currentUser()) name = "signin";
+    if (APP_SCREENS.indexOf(name) !== -1 && !signedIn()) name = "signin";
+    if ((name === "signin" || name === "signup" || name === "opening") && signedIn()) name = "home";
     if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
 
-    closeSheet();
+    if (!pendingConsent) closeSheet();
     $$(".screen").forEach(function (s) { s.classList.toggle("is-active", s.getAttribute("data-screen") === name); });
 
     var screen = $('[data-screen="' + name + '"]');
@@ -246,22 +275,20 @@
       if (active) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
 
-    if (name === "timeline") renderTimeline();
-    if (name === "qr") startQrTimer(); else stopQrTimer();
-    var scroller = $(".content", screen) || screen;
-    scroller.scrollTop = 0;
     bindUser();
+    if (name === "timeline") renderTimeline();
+    if (name === "qr") renderQr();
+    if (name === "profile") renderAccess();
+    ($(".content", screen) || screen).scrollTop = 0;
   }
-
-  function go(hash) {
-    if (location.hash === hash) route(); else location.hash = hash;
-  }
+  function go(hash) { if (location.hash === hash) route(); else location.hash = hash; }
 
   // ---------- Forms ----------
-  function showError(form, msg, input) {
+  function showError(form, msg, input, isNote) {
     var err = $(".form__error", form);
     err.textContent = msg;
     err.hidden = false;
+    err.classList.toggle("form__note", !!isNote);
     $$(".input", form).forEach(function (i) { i.classList.remove("is-invalid"); });
     if (input) { input.closest(".input").classList.add("is-invalid"); input.focus(); }
   }
@@ -269,7 +296,6 @@
     $(".form__error", form).hidden = true;
     $$(".input", form).forEach(function (i) { i.classList.remove("is-invalid"); });
   }
-  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   $("#signin-form").addEventListener("submit", function (e) {
     e.preventDefault();
@@ -277,11 +303,18 @@
     if (!EMAIL_RE.test(email)) return showError(f, "Enter a valid email address.", f.email);
     if (!pw) return showError(f, "Enter your password.", f.password);
     clearError(f);
-    var existing = currentUser();
-    var name = existing && existing.email === email ? existing.name : DEFAULT_USER.name;
-    saveUser({ name: name, email: email });
-    f.reset();
-    go("#home");
+    var done = busy($('button[type="submit"]', f), "Signing in…");
+    Api.signIn(email, pw).then(afterSignIn).then(function () {
+      done(); f.reset(); go("#home");
+    }).catch(function (err) { done(); showError(f, err.message); });
+  });
+
+  $("#forgot").addEventListener("click", function () {
+    var f = $("#signin-form"), email = f.email.value.trim();
+    if (!EMAIL_RE.test(email)) return showError(f, "Enter your email above, then tap Forgot password.", f.email);
+    Api.resetPassword(email).then(function () {
+      showError(f, Api.mode === "cloud" ? "If that email has an account, a reset link is on its way." : "Demo mode: no email is sent.", null, true);
+    }).catch(function (err) { showError(f, err.message); });
   });
 
   var dobInput = $('#signup-form [name="dob"]');
@@ -298,27 +331,37 @@
     var f = e.target;
     var name = f.name.value.trim(), email = f.email.value.trim(), pw = f.password.value;
     var dob = f.dob.value.replace(/\D/g, "");
-    if (name.split(/\s+/).length < 2) return showError(f, "Enter your first and last name.", f.name);
     var mm = +dob.slice(0, 2), dd = +dob.slice(2, 4), yyyy = +dob.slice(4);
-    if (dob.length !== 8 || mm < 1 || mm > 12 || dd < 1 || dd > 31 || yyyy < 1900 || yyyy > 2026)
+    if (name.split(/\s+/).length < 2) return showError(f, "Enter your first and last name.", f.name);
+    if (dob.length !== 8 || mm < 1 || mm > 12 || dd < 1 || dd > 31 || yyyy < 1900 || yyyy > new Date().getFullYear())
       return showError(f, "Enter your date of birth as MM / DD / YYYY.", f.dob);
     if (!EMAIL_RE.test(email)) return showError(f, "Enter a valid email address.", f.email);
     if (pw.length < 8) return showError(f, "Password must be at least 8 characters.", f.password);
     if (!f.terms.checked) return showError(f, "Please agree to the Terms and Privacy Policy.");
     clearError(f);
-    saveUser({ name: name, email: email });
-    f.reset();
-    go("#home");
-    toast("Welcome to Fabric, " + name.split(/\s+/)[0] + "!");
+    var done = busy($('button[type="submit"]', f), "Creating account…");
+    var iso = dob.slice(4) + "-" + dob.slice(0, 2) + "-" + dob.slice(2, 4);
+    Api.signUp({ name: name, dob: iso, email: email, password: pw }).then(function (r) {
+      if (r.needsConfirm) {
+        done(); f.reset();
+        go("#signin");
+        showError($("#signin-form"), "Check your email to confirm your account, then sign in.", null, true);
+        return;
+      }
+      return afterSignIn().then(function () {
+        done(); f.reset(); go("#home");
+        toast("Welcome to Fabric, " + name.split(/\s+/)[0] + "!");
+      });
+    }).catch(function (err) { done(); showError(f, err.message); });
   });
 
-  // ---------- Global clicks ----------
+  // ---------- Clicks ----------
   document.addEventListener("click", function (e) {
     var t = e.target;
 
     var rec = t.closest("[data-record]");
     if (rec) {
-      var r = RECORDS.filter(function (x) { return x.id === rec.getAttribute("data-record"); })[0];
+      var r = (D.records || []).filter(function (x) { return x.id === rec.getAttribute("data-record"); })[0];
       if (r) openSheet(recordSheet(r));
       return;
     }
@@ -330,40 +373,62 @@
     }
     var consent = t.closest("[data-consent]");
     if (consent && pendingConsent) {
-      var ok = consent.getAttribute("data-consent") === "approve";
-      var keys = checkedKeys();
+      var ok = consent.getAttribute("data-consent") === "approve", keys = checkedKeys(), req = pendingConsent;
       if (ok && !keys.length) { toast("Choose at least one thing to share"); return; }
-      window.FabricBus.send({ type: "consent-response", requestId: pendingConsent.id, approved: ok, items: keys });
-      toast(ok ? "Shared with " + pendingConsent.clinic : "Nothing was shared");
-      pendingConsent = null;
-      closeSheet();
+      var done = busy(consent, ok ? "Sharing…" : "One moment…");
+      Api.respond(req.id, ok, ok ? keys : [], req.clinic).then(function () {
+        pendingConsent = null;
+        closeSheet();
+        toast(ok ? "Shared with " + req.clinic : "Nothing was shared");
+        if (location.hash === "#profile") renderAccess();
+      }).catch(function (err) { done(); pendingConsent = null; closeSheet(); toast(err.message); });
       return;
     }
-    if (t.closest("[data-share-link]")) {
+    var mk = t.closest("[data-share-link]");
+    if (mk) {
       var linkKeys = checkedKeys();
       if (!linkKeys.length) { toast("Choose at least one thing to share"); return; }
-      var url = "view.html?k=" + linkKeys.join(",") + "&t=" + Date.now();
-      window.open(url, "_blank", "noopener");
-      try { navigator.clipboard.writeText(new URL(url, location.href).href); } catch (err) { /* clipboard unavailable */ }
-      closeSheet();
-      toast("Link created. It works at any clinic for 24 hours.");
+      var doneLink = busy(mk, "Creating…");
+      Api.createShareLink(linkKeys).then(function (url) {
+        openSheet(linkReadySheet(url));
+      }).catch(function (err) { doneLink(); toast(err.message); });
+      return;
+    }
+    if (t.closest("[data-copy-link]")) {
+      var url = $("#share-url").textContent;
+      var copied = navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject();
+      copied.then(function () { toast("Link copied"); }, function () { toast("Press and hold the link to copy it"); });
+      return;
+    }
+    var end = t.closest("[data-end]");
+    if (end) {
+      end.disabled = true;
+      Api.endAccess(end.getAttribute("data-end"), end.getAttribute("data-id")).then(function () {
+        toast("Access ended"); renderAccess();
+      }).catch(function (err) { end.disabled = false; toast(err.message); });
       return;
     }
     var toaster = t.closest("[data-toast]");
     if (toaster) { e.preventDefault(); toast(toaster.getAttribute("data-toast")); return; }
 
-    if (t.closest("#scrim") || t.closest(".sheet__grabber") || t.closest("[data-close]")) { closeSheet(); return; }
-
-    if (t.closest("#logout")) {
-      saveUser(null);
-      go("#opening");
+    if (t.closest("#scrim") || t.closest(".sheet__grabber") || t.closest("[data-close]")) {
+      if (!pendingConsent) closeSheet();
       return;
     }
-    if (t.closest("#emergency")) { toast("Emergency contacts coming soon (demo)"); return; }
+    if (t.closest("#logout")) { signOut().then(function () { go("#opening"); }); return; }
     if (t.closest("#clear-filter")) { filterQuery = ""; renderTimeline(); }
   });
 
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSheet(); });
+  document.addEventListener("submit", function (e) {
+    if (e.target.id !== "new-password-form") return;
+    e.preventDefault();
+    var f = e.target, pw = f.password.value;
+    if (pw.length < 8) return showError(f, "Password must be at least 8 characters.", f.password);
+    Api.updatePassword(pw).then(function () { closeSheet(); toast("Password updated"); })
+      .catch(function (err) { showError(f, err.message); });
+  });
+
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !pendingConsent) closeSheet(); });
 
   $("#home-search").addEventListener("submit", function (e) {
     e.preventDefault();
@@ -371,12 +436,18 @@
     e.target.reset();
     if (location.hash === "#timeline") renderTimeline(); else location.hash = "#timeline";
   });
-
-  // Nav tab clicks clear any timeline search
   $$("#navbar a").forEach(function (a) {
     a.addEventListener("click", function () { if (a.getAttribute("data-tab") === "timeline") filterQuery = ""; });
   });
 
+  // ---------- Boot ----------
   window.addEventListener("hashchange", route);
-  route();
+  window.addEventListener("load", function () { if (location.hash === "#qr") renderQr(); });
+  Api.ready
+    .then(function () { return Api.signedIn() ? afterSignIn() : null; })
+    .catch(function (err) { toast(err.message); })
+    .then(function () {
+      route();
+      Api.onRecovery(function () { openSheet(newPasswordSheet()); });
+    });
 })();

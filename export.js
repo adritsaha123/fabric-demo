@@ -22,7 +22,7 @@
     m = /^(\d{4})$/.exec(s.trim());
     return m ? m[1] : null;
   }
-  function dobIso() { var p = D.patient.dob.split("/"); return p[2] + "-" + p[0] + "-" + p[1]; }
+  function dobIso() { if (!D.patient.dob) return undefined; var p = D.patient.dob.split("/"); return p[2] + "-" + p[0] + "-" + p[1]; }
   function hl7(iso) { return iso ? iso.replace(/-/g, "") : ""; } // C-CDA date format: YYYYMMDD
   function nameParts() { var n = D.patient.name.trim().split(/\s+/); return { given: n.slice(0, -1), family: n[n.length - 1] }; }
   function uuid() {
@@ -32,7 +32,7 @@
     });
   }
   function xml(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c];
     });
   }
@@ -54,8 +54,9 @@
       name: [{ use: "official", family: n.family, given: n.given }],
       gender: D.patient.sex === "M" ? "male" : D.patient.sex === "F" ? "female" : "unknown",
       birthDate: dobIso(),
-      telecom: [{ system: "phone", value: D.patient.phone }, { system: "email", value: D.patient.email }],
-      address: [{ text: D.patient.address }]
+      telecom: [{ system: "phone", value: D.patient.phone }, { system: "email", value: D.patient.email }]
+        .filter(function (t) { return t.value; }),
+      address: D.patient.address ? [{ text: D.patient.address }] : undefined
     });
 
     if (has(keys, "insurance")) {

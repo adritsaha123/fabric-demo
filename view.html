@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Momo+Trust+Display&family=Roboto:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="clinic.css?v=4" />
+  <link rel="stylesheet" href="clinic.css?v=5" />
   <style>
     .free-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
       padding: 14px 32px; background: var(--surface); border-bottom: 1px solid var(--accent-1); }
@@ -37,40 +37,41 @@
   <main class="free-main" id="main"></main>
 
   <div class="free-actions" id="free-actions" hidden>
-    <p class="small muted actions__note">Re-typing this into your system? <a class="link" href="clinic.html">Fabric for Clinics</a> imports it automatically.</p>
+    <p class="small muted actions__note">Re-typing this? <a class="link" href="clinic.html">Fabric for Clinics</a> imports it for you.</p>
     <button class="btn btn--light" type="button" id="ccda">Download C-CDA (.xml)</button>
     <button class="btn btn--primary" type="button" id="print">Download PDF for your chart</button>
   </div>
 
-  <script src="shared.js?v=4"></script>
-  <script src="packet.js?v=4"></script>
-  <script src="export.js?v=4"></script>
+  <script src="config.js?v=5"></script>
+  <script src="shared.js?v=5"></script>
+  <script src="api.js?v=5"></script>
+  <script src="packet.js?v=5"></script>
+  <script src="export.js?v=5"></script>
   <script>
     (function () {
-      var params = new URLSearchParams(location.search);
-      var keys = (params.get("k") || "").split(",").filter(Boolean);
-      var t = +params.get("t") || 0;
       var main = document.getElementById("main");
-      var valid = window.FABRIC_DATA.shareItems.map(function (i) { return i.key; });
-      keys = keys.filter(function (k) { return valid.indexOf(k) !== -1; });
-      var expires = t + 24 * 3600 * 1000;
-
-      if (!keys.length || !t) {
-        main.innerHTML = '<div class="empty-state"><p class="h-m">This link isn’t valid</p><p class="body muted">Ask the patient to share again from their Fabric app.</p></div>';
-        return;
+      function empty(title, text) {
+        main.innerHTML = '<div class="empty-state"><p class="h-m">' + title + '</p><p class="body muted">' + text + "</p></div>";
       }
-      if (Date.now() > expires) {
-        main.innerHTML = '<div class="empty-state"><p class="h-m">This link has expired</p><p class="body muted">Shared links last 24 hours. Ask the patient to share again from their Fabric app.</p></div>';
-        return;
-      }
-      main.innerHTML =
-        '<header class="top"><div><p class="body muted">Shared health summary</p><h1 class="h-xl">Patient-approved records</h1></div></header>' +
-        window.FabricPacket.render({ keys: keys, pro: false, sharedAt: new Date(t), expires: new Date(expires) });
-      document.getElementById("free-actions").hidden = false;
-      document.getElementById("print").addEventListener("click", function () { window.print(); });
-      document.getElementById("ccda").addEventListener("click", function () {
-        window.FabricExport.download(window.FabricExport.fileBase() + ".ccda.xml", window.FabricExport.ccda(keys), "application/xml");
-      });
+      main.innerHTML = '<div class="empty-state"><p class="body muted">Loading…</p></div>';
+      window.FabricApi.ready.then(function () {
+        return window.FabricApi.sharedSummary(new URLSearchParams(location.search));
+      }).then(function (r) {
+        if (!r.ok) {
+          return r.reason === "expired"
+            ? empty("This link has expired", "Links last 24 hours, or until the patient ends them. Ask them to share again.")
+            : empty("This link isn’t valid", "Ask the patient to share again from their Fabric app.");
+        }
+        window.FabricData.load(r.data);
+        main.innerHTML =
+          '<header class="top"><div><p class="body muted">Shared health summary</p><h1 class="h-xl">Patient-approved records</h1></div></header>' +
+          window.FabricPacket.render({ keys: r.keys, pro: false, sharedAt: r.sharedAt, expires: r.expires });
+        document.getElementById("free-actions").hidden = false;
+        document.getElementById("print").addEventListener("click", function () { window.print(); });
+        document.getElementById("ccda").addEventListener("click", function () {
+          window.FabricExport.download(window.FabricExport.fileBase() + ".ccda.xml", window.FabricExport.ccda(r.keys), "application/xml");
+        });
+      }).catch(function (err) { empty("Couldn’t load this summary", err.message); });
     })();
   </script>
 </body>

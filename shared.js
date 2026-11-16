@@ -102,6 +102,21 @@
     on: function (fn) { listeners.push(fn); }
   };
 
+  var SHARE_ITEMS = DATA.shareItems;
+  var DEMO = JSON.parse(JSON.stringify(DATA));
+  delete DEMO.shareItems;
+
+  /* FABRIC_DATA is the working copy every page renders from. In cloud mode it is
+     replaced with the signed-in patient's data, or with only what a patient shared. */
   window.FABRIC_DATA = DATA;
+  window.FabricData = {
+    demo: function () { return JSON.parse(JSON.stringify(DEMO)); },
+    load: function (obj) {
+      Object.keys(DATA).forEach(function (k) { if (k !== "shareItems") delete DATA[k]; });
+      Object.keys(obj || {}).forEach(function (k) { if (k !== "shareItems") DATA[k] = obj[k]; });
+      DATA.shareItems = SHARE_ITEMS;
+      return DATA;
+    }
+  };
   window.FabricBus = Bus;
 })();

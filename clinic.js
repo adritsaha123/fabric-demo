@@ -1,8 +1,8 @@
 /* Fabric for Clinics — paid front-desk portal (demo). */
 (function () {
   "use strict";
-  var D = window.FABRIC_DATA, Bus = window.FabricBus, esc = window.FabricPacket.esc;
-  var CLINIC = "Riverside Family Practice";
+  var D = window.FABRIC_DATA, Api = window.FabricApi, esc = window.FabricPacket.esc;
+  var CLINIC = "Riverside Family Practice", clinicId = null;
   var MIN_PER_CHECKIN = 8;
 
   var $ = function (s, r) { return (r || document).querySelector(s); };
@@ -87,13 +87,13 @@
   }
   function renderPacket() {
     $("#packet").innerHTML = window.FabricPacket.render({
-      keys: current.keys, pro: true, sharedAt: current.sharedAt, insuranceFixed: current.insuranceFixed
+      keys: current.keys, pro: true, sharedAt: current.sharedAt, expires: current.expires, insuranceFixed: current.insuranceFixed
     });
     if (!$("#actions")) {
       var bar = document.createElement("div");
       bar.className = "actions"; bar.id = "actions";
       bar.innerHTML =
-        '<p class="small muted actions__note">Paid plan: the import goes straight into your records system (demo shows a PDF).</p>' +
+        '<p class="small muted actions__note">Paid plan: imports straight to your records system.</p>' +
         '<button class="btn btn--light" type="button" data-action="pdf">Download PDF</button>' +
         '<button class="btn btn--secondary" type="button" data-action="import">Import to chart</button>' +
         '<button class="btn btn--primary" type="button" data-action="complete">Complete check-in</button>';
@@ -103,59 +103,75 @@
   }
 
   // ---------- Scan flow ----------
-  var pendingRequest = null;
+  var pendingRequest = null, stopWatch = null;
   function openScan() {
+    if (!clinicId) return gate();
     $("#scan-scrim").hidden = false; $("#scan-modal").hidden = false;
     step(1); $("#scan-error").hidden = true;
     setTimeout(function () { $("#fabric-id").focus(); }, 50);
   }
   function closeScan() {
-    $("#scan-scrim").hidden = true; $("#scan-modal").hidden = true; pendingRequest = null;
+    $("#scan-scrim").hidden = true; $("#scan-modal").hidden = true;
+    if (stopWatch) { stopWatch(); stopWatch = null; }
+    if (pendingRequest) { Api.cancelRequest(pendingRequest).catch(function () {}); pendingRequest = null; }
   }
   function step(n) { [1, 2, 3].forEach(function (i) { $("#scan-step-" + i).hidden = i !== n; }); }
+  function scanError(msg) { var err = $("#scan-error"); err.textContent = msg; err.hidden = false; }
 
   function startScan(rawId) {
-    var id = String(rawId).trim().toUpperCase().replace(/\s+/g, "");
-    if (id !== D.fabricId) {
-      var err = $("#scan-error");
-      err.textContent = "No Fabric member found with that ID. Try " + D.fabricId + ".";
-      err.hidden = false; return;
-    }
-    pendingRequest = Bus.send({ type: "consent-request", clinic: CLINIC, items: D.shareItems.map(function (i) { return i.key; }) });
-    $("#waiting-text").textContent = "We sent a request to " + D.patient.name.split(" ")[0] + "’s phone. They choose what " + CLINIC + " can see.";
-    step(2);
+    var id = String(rawId || "").trim();
+    if (!id) return scanError("Enter a Fabric ID.");
+    $("#scan-error").hidden = true;
+    Api.requestConsent(clinicId, id).then(function (r) {
+      if (!r.found) return scanError("No Fabric member with that ID.");
+      pendingRequest = r.id;
+      $("#waiting-text").textContent = "Sent to " + r.firstName + "’s phone. They choose what you can see.";
+      $("#approve-error").hidden = true;
+      step(2);
+      stopWatch = Api.watchRequest(r.id, function (status) {
+        stopWatch = null;
+        if (status === "approved") loadPacket(r.id);
+        else { pendingRequest = null; step(3); }
+      });
+    }).catch(function (err) { scanError(err.message); });
   }
   $("#scan-form").addEventListener("submit", function (e) {
     e.preventDefault();
     startScan($("#fabric-id").value);
   });
 
-  // Demo: no camera, so "scanning" just reads the demo patient's Fabric ID.
+  // Demo: no camera, so "scanning" reads the Fabric ID of the patient signed in on this browser.
   function simulateScan() {
-    $("#fabric-id").value = D.fabricId;
-    startScan(D.fabricId);
+    Api.myFabricId().then(function (fid) {
+      if (!fid) return scanError("Create a patient account in the patient app first, or type a Fabric ID.");
+      $("#fabric-id").value = fid;
+      startScan(fid);
+    }).catch(function (err) { scanError(err.message); });
   }
   $("#simulate-scan").addEventListener("click", simulateScan);
   $("#simulate-scan-qr").addEventListener("click", simulateScan);
 
-  function approved(keys) {
-    closeScan();
-    current = { keys: keys, sharedAt: new Date(), insuranceFixed: false };
-    renderPacket();
-    show("packet");
-    toast(D.patient.name + " shared " + keys.length + " of " + D.shareItems.length + " sections with you.");
+  function loadPacket(id) {
+    pendingRequest = null;
+    if (stopWatch) { stopWatch(); stopWatch = null; }
+    Api.packet(id).then(function (p) {
+      window.FabricData.load(p.data);
+      closeScan();
+      current = { keys: p.keys, sharedAt: p.sharedAt, expires: p.expires, insuranceFixed: false };
+      var row = schedule.filter(function (r) { return r.fabric; })[0];
+      if (row && row.status !== "done") { row.name = D.patient.name; renderSchedule(); }
+      renderPacket();
+      show("packet");
+      toast(D.patient.name + " shared " + p.keys.length + " of " + D.shareItems.length + " sections.");
+    }).catch(function (err) { closeScan(); toast(err.message); });
   }
 
-  Bus.on(function (msg) {
-    if (msg.type !== "consent-response" || msg.requestId !== pendingRequest) return;
-    if (msg.approved) approved(msg.items);
-    else step(3);
-  });
-
   $("#simulate-approve").addEventListener("click", function () {
-    if (!pendingRequest) return;
-    Bus.send({ type: "consent-cancel", requestId: pendingRequest }); // close the prompt if a phone tab is open
-    approved(D.shareItems.map(function (i) { return i.key; }));
+    var id = pendingRequest, btn = this;
+    if (!id) return;
+    btn.disabled = true;
+    Api.approveAsPatient(id).then(function () { btn.disabled = false; loadPacket(id); })
+      .catch(function (err) { btn.disabled = false; var e = $("#approve-error"); e.textContent = err.message; e.hidden = false; });
   });
 
   // ---------- Import to chart ----------
@@ -207,12 +223,12 @@
       var kind = dl.getAttribute("data-download"), f = exportFiles();
       if (kind === "fhir") window.FabricExport.download(window.FabricExport.fileBase() + ".fhir.json", f.fhir, "application/fhir+json");
       else window.FabricExport.download(window.FabricExport.fileBase() + ".ccda.xml", f.ccda, "application/xml");
-      markImported("Downloaded. Upload it to the patient’s chart in your records system.");
+      markImported("Downloaded. Upload it to the patient’s chart.");
       return;
     }
     if (t.closest("#send-direct")) {
       closeImport();
-      markImported("Sent to your chart inbox. A clinician confirms allergies, medications and problems before they’re saved (simulated).");
+      markImported("Sent to your chart inbox for a clinician to confirm (simulated).");
       return;
     }
 
@@ -240,7 +256,7 @@
       renderSchedule(); show("checkin");
       bump("fabricCheckins", 1); bump("minutesSaved", MIN_PER_CHECKIN);
       if (current.keys.indexOf("records") !== -1) bump("outsideRecords", D.records.length);
-      toast(D.patient.name + " is checked in. About " + MIN_PER_CHECKIN + " minutes of front-desk time saved.");
+      toast(D.patient.name + " is checked in. ~" + MIN_PER_CHECKIN + " min saved.");
     }
   });
   document.addEventListener("keydown", function (e) {
@@ -252,4 +268,39 @@
   // ---------- Init ----------
   $("#today").textContent = new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
   renderStats(); renderSchedule(); renderRequests();
+
+  // ---------- Staff sign-in (cloud mode) ----------
+  function joined(c) {
+    clinicId = c.id; CLINIC = c.name;
+    $("#clinic-name").textContent = c.name;
+    $("#gate-scrim").hidden = true; $("#gate").hidden = true;
+    $("#staff-signout").hidden = Api.mode !== "cloud";
+  }
+  function gate(msg) {
+    $("#gate-scrim").hidden = false; $("#gate").hidden = false;
+    var err = $("#gate-error"); err.textContent = msg || ""; err.hidden = !msg;
+    setTimeout(function () { $("#gate-email").focus(); }, 50);
+  }
+  function gateSubmit(signUp) {
+    var email = $("#gate-email").value.trim(), pw = $("#gate-pw").value;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return gate("Enter a valid email address.");
+    if (pw.length < 8) return gate("Password must be at least 8 characters.");
+    $$("#gate button").forEach(function (b) { b.disabled = true; });
+    var run = signUp
+      ? Api.signUp({ name: "Front Desk", dob: null, email: email, password: pw }).then(function (r) {
+          if (r.needsConfirm) throw new Error("Check your email to confirm, then sign in.");
+        })
+      : Api.signIn(email, pw);
+    run.then(function () { return Api.joinClinic(); }).then(joined)
+      .catch(function (err) { gate(err.message); })
+      .then(function () { $$("#gate button").forEach(function (b) { b.disabled = false; }); });
+  }
+  $("#gate-form").addEventListener("submit", function (e) { e.preventDefault(); gateSubmit(false); });
+  $("#gate-signup").addEventListener("click", function () { gateSubmit(true); });
+  $("#staff-signout").addEventListener("click", function () { Api.signOut().then(function () { location.reload(); }); });
+
+  Api.ready.then(function () {
+    if (Api.mode === "cloud" && !Api.signedIn()) return gate();
+    return Api.joinClinic().then(joined);
+  }).catch(function (err) { gate(err.message); });
 })();
