@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#fff9f4" />
+  <title>Fabric for Clinics</title>
+  <link rel="icon" href="assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Momo+Trust+Display&family=Roboto:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="clinic.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="side">
+      <div class="brand">
+        <img src="assets/logo.png" width="28" height="28" alt="" />
+        <span class="h-m">Fabric</span>
+        <span class="brand__tag label">for Clinics</span>
+      </div>
+      <div class="clinic-card">
+        <div class="clinic-card__icon h-m">R</div>
+        <div>
+          <p class="title">Riverside Family Practice</p>
+          <p class="small muted">Demo clinic · Paid plan</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav__item is-active" type="button" data-view="checkin">
+          <img src="assets/icon-qr.svg" width="20" height="20" alt="" /><span class="body">Check-in</span>
+        </button>
+        <button class="nav__item" type="button" data-view="requests">
+          <img src="assets/nav-timeline.svg" width="20" height="20" alt="" /><span class="body">Records requests</span>
+          <span class="badge label" id="req-badge">3</span>
+        </button>
+      </nav>
+      <div class="side__spacer"></div>
+      <a class="side__link small" href="index.html" target="_blank" rel="noopener">Open the patient app ↗</a>
+      <p class="side__note small muted">Demo only. All patients and data are fictional.</p>
+    </aside>
+
+    <main class="main">
+      <!-- Check-in view -->
+      <section class="view is-active" data-view="checkin">
+        <header class="top">
+          <div>
+            <p class="body muted" id="today"></p>
+            <h1 class="h-xl">Front desk</h1>
+          </div>
+          <button class="btn btn--primary" type="button" id="open-scan">
+            <img src="assets/icon-qr.svg" width="20" height="20" alt="" class="invert" /> Scan Fabric ID
+          </button>
+        </header>
+
+        <div class="stats">
+          <div class="stat"><p class="label muted">CHECK-INS WITH FABRIC</p><p class="stat__num" data-stat="fabricCheckins">0</p></div>
+          <div class="stat"><p class="label muted">FRONT-DESK TIME SAVED</p><p class="stat__num"><span data-stat="minutesSaved">0</span> min</p><p class="small muted">est. 8 min per check-in</p></div>
+          <div class="stat"><p class="label muted">INSURANCE ISSUES CAUGHT</p><p class="stat__num" data-stat="issuesCaught">0</p><p class="small muted">before the claim goes out</p></div>
+          <div class="stat"><p class="label muted">OUTSIDE RECORDS RECEIVED</p><p class="stat__num" data-stat="outsideRecords">0</p></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__head">
+            <h2 class="h-m">Today’s schedule</h2>
+            <p class="small muted">Patients with a Fabric ID arrive with everything filled in.</p>
+          </div>
+          <table class="schedule">
+            <thead><tr><th class="label">TIME</th><th class="label">PATIENT</th><th class="label">REASON</th><th class="label">STATUS</th><th></th></tr></thead>
+            <tbody id="schedule"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Patient packet view -->
+      <section class="view" data-view="packet">
+        <button class="back small" type="button" id="back-to-desk"><img src="assets/icon-back-plain.svg" width="20" height="20" alt="" /> Back to front desk</button>
+        <div id="packet"></div>
+      </section>
+
+      <!-- Records requests view -->
+      <section class="view" data-view="requests">
+        <header class="top">
+          <div>
+            <p class="body muted">Outgoing records</p>
+            <h1 class="h-xl">Records requests</h1>
+          </div>
+        </header>
+        <p class="body intro">Requests arrive with the patient’s identity verified and their signed authorization attached. No fax, no phone tag: review and send.</p>
+        <div class="requests" id="requests"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Scan modal -->
+  <div class="modal-scrim" id="scan-scrim" hidden></div>
+  <div class="modal" id="scan-modal" role="dialog" aria-modal="true" aria-labelledby="scan-title" hidden>
+    <button class="modal__close" type="button" id="scan-close" aria-label="Close">×</button>
+    <div id="scan-step-1">
+      <h2 class="h-m" id="scan-title">Scan Fabric ID</h2>
+      <p class="small muted">Point the scanner at the QR code on the patient’s phone.</p>
+      <div class="scanner"><img src="assets/qr-code.svg" width="250" height="250" alt="" class="scanner__qr" /><span class="scanner__line"></span></div>
+      <form id="scan-form" class="scan-form">
+        <label class="label" for="fabric-id">Or enter the Fabric ID</label>
+        <div class="scan-form__row">
+          <input id="fabric-id" name="id" class="input" value="FAB-7Q2K-91" autocomplete="off" spellcheck="false" />
+          <button class="btn btn--primary" type="submit">Scan</button>
+        </div>
+        <p class="small error" id="scan-error" hidden></p>
+      </form>
+    </div>
+    <div id="scan-step-2" hidden>
+      <div class="spinner" aria-hidden="true"></div>
+      <h2 class="h-m">Waiting for the patient</h2>
+      <p class="body muted" id="waiting-text"></p>
+      <p class="small muted">If the patient app is open in another tab, approve the request there.</p>
+      <button class="link small" type="button" id="simulate-approve">Patient’s phone isn’t open? Approve on their behalf (demo)</button>
+    </div>
+    <div id="scan-step-3" hidden>
+      <h2 class="h-m">Request declined</h2>
+      <p class="body muted">The patient chose not to share their records. Continue check-in the usual way.</p>
+      <button class="btn btn--secondary" type="button" id="declined-ok">OK</button>
+    </div>
+  </div>
+
+  <!-- Import to chart modal -->
+  <div class="modal-scrim" id="import-scrim" hidden></div>
+  <div class="modal modal--wide" id="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title" hidden>
+    <button class="modal__close" type="button" data-close-import aria-label="Close">×</button>
+    <div class="import">
+      <h2 class="h-m" id="import-title">Import to chart</h2>
+      <p class="small muted">Only what the patient approved. Your system reconciles it into the chart, and a clinician confirms before anything is saved.</p>
+      <div class="files">
+        <div class="file">
+          <div><p class="title">FHIR R4 bundle</p><p class="small muted" id="fhir-meta"></p><p class="small">For records-system APIs and integration services</p></div>
+          <div class="file__btns"><button class="btn btn--light btn--sm" type="button" data-preview="fhir">Preview</button><button class="btn btn--primary btn--sm" type="button" data-download="fhir">Download .json</button></div>
+        </div>
+        <div class="file">
+          <div><p class="title">C-CDA summary</p><p class="small muted" id="ccda-meta"></p><p class="small">Every certified records system can receive this one</p></div>
+          <div class="file__btns"><button class="btn btn--light btn--sm" type="button" data-preview="ccda">Preview</button><button class="btn btn--primary btn--sm" type="button" data-download="ccda">Download .xml</button></div>
+        </div>
+      </div>
+      <pre class="preview" id="import-preview" hidden></pre>
+      <div class="import__send">
+        <div>
+          <p class="title">Send to your records system’s inbox</p>
+          <p class="small muted">Delivers the C-CDA to <code>frontdesk@direct.riverside-demo.example</code> by Direct Secure Messaging (simulated)</p>
+        </div>
+        <button class="btn btn--primary" type="button" id="send-direct">Send to chart inbox</button>
+      </div>
+      <p class="small muted">Demo files: entries are plain text, not standard medical codes, and haven’t been through an official validator.</p>
+    </div>
+  </div>
+
+  <div class="toast small" id="toast" hidden></div>
+
+  <script src="shared.js"></script>
+  <script src="packet.js"></script>
+  <script src="export.js"></script>
+  <script src="clinic.js"></script>
+</body>
+</html>

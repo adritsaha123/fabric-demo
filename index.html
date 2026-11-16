@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- iPhone 16: maximum-scale stops Safari zooming in when a 15px input is focused (pinch-zoom still works) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#fff9f4" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Fabric" />
+  <meta name="format-detection" content="telephone=no" />
+  <link rel="apple-touch-icon" href="assets/logo.png" />
+  <title>Fabric</title>
+  <link rel="icon" href="assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Momo+Trust+Display&family=Roboto:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="phone" id="phone">
+    <!-- iPhone 16 status bar, Dynamic Island and home indicator (desktop preview only) -->
+    <div class="device device--status" aria-hidden="true">
+      <span>9:41</span>
+      <span class="device__icons">
+        <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+        <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2.6c2.2 0 4.2.9 5.7 2.3l1.1-1.1A9.6 9.6 0 0 0 8 1 9.6 9.6 0 0 0 1.2 3.8l1.1 1.1A8 8 0 0 1 8 2.6Zm0 3.2c1.3 0 2.5.5 3.4 1.4l1.1-1.1A6.4 6.4 0 0 0 8 4.2c-1.7 0-3.3.7-4.5 1.9l1.1 1.1c.9-.9 2.1-1.4 3.4-1.4Zm0 3.2c-.5 0-1 .2-1.3.6L8 11l1.3-1.4C9 9.2 8.5 9 8 9Z"/></svg>
+        <svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2"/><path d="M25 4.5v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2Z" opacity=".4"/></svg>
+      </span>
+    </div>
+    <div class="device device--island" aria-hidden="true"></div>
+    <div class="device device--home" aria-hidden="true"></div>
+
+    <!-- Opening -->
+    <section class="screen opening" data-screen="opening">
+      <img class="opening__pattern" src="assets/fabric-pattern.png" alt="" />
+      <h1 class="opening__title">Fabric</h1>
+      <img class="opening__logo" src="assets/logo.png" alt="Fabric logo" />
+      <a class="opening__signin" href="#signin">Sign In</a>
+      <a class="opening__signup" href="#signup">Sign Up</a>
+    </section>
+
+    <!-- Sign In -->
+    <section class="screen auth" data-screen="signin">
+      <div class="topbar">
+        <a class="icon-btn" href="#opening" aria-label="Back"><img src="assets/icon-back.svg" width="22" height="22" alt="" /></a>
+        <img class="topbar__logo" src="assets/logo.png" alt="Fabric" />
+      </div>
+      <div class="heading">
+        <h1 class="h-xl">Welcome back</h1>
+        <p class="body">Sign in to see your records and transfers.</p>
+      </div>
+      <form class="form" id="signin-form" novalidate>
+        <label class="field">
+          <span class="label">Email</span>
+          <span class="input"><img src="assets/icon-mail.svg" width="20" height="20" alt="" /><input type="email" name="email" placeholder="you@example.com" autocomplete="email" required /></span>
+        </label>
+        <label class="field">
+          <span class="label">Password</span>
+          <span class="input"><img src="assets/icon-lock.svg" width="20" height="20" alt="" /><input type="password" name="password" placeholder="••••••••" autocomplete="current-password" required /></span>
+        </label>
+        <a class="small link" href="#" data-toast="Password reset link sent (demo)">Forgot password?</a>
+        <p class="form__error small" hidden></p>
+        <button class="btn btn--primary" type="submit">Sign in</button>
+      </form>
+      <div class="spacer"></div>
+      <p class="switch"><span class="body">New to Fabric?</span><a class="title link" href="#signup">Create an account</a></p>
+    </section>
+
+    <!-- Sign Up -->
+    <section class="screen auth" data-screen="signup">
+      <div class="topbar">
+        <a class="icon-btn" href="#opening" aria-label="Back"><img src="assets/icon-back.svg" width="22" height="22" alt="" /></a>
+        <img class="topbar__logo" src="assets/logo.png" alt="Fabric" />
+      </div>
+      <div class="heading">
+        <h1 class="h-xl">Create your account</h1>
+        <p class="body">Free for patients. Your records, wherever you go.</p>
+      </div>
+      <form class="form form--tight" id="signup-form" novalidate>
+        <label class="field">
+          <span class="label">Full name</span>
+          <span class="input"><img src="assets/icon-user.svg" width="20" height="20" alt="" /><input type="text" name="name" placeholder="First and last name" autocomplete="name" required /></span>
+        </label>
+        <label class="field">
+          <span class="label">Date of birth</span>
+          <span class="input"><img src="assets/icon-calendar.svg" width="20" height="20" alt="" /><input type="text" name="dob" placeholder="MM / DD / YYYY" inputmode="numeric" maxlength="14" required /></span>
+        </label>
+        <label class="field">
+          <span class="label">Email</span>
+          <span class="input"><img src="assets/icon-mail.svg" width="20" height="20" alt="" /><input type="email" name="email" placeholder="you@example.com" autocomplete="email" required /></span>
+        </label>
+        <label class="field">
+          <span class="label">Password</span>
+          <span class="input"><img src="assets/icon-lock.svg" width="20" height="20" alt="" /><input type="password" name="password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required /></span>
+        </label>
+        <label class="terms">
+          <input type="checkbox" name="terms" checked />
+          <span class="checkbox"><img src="assets/icon-check.svg" width="16" height="16" alt="" /></span>
+          <span class="small">I agree to Fabric’s Terms and Privacy Policy</span>
+        </label>
+        <p class="form__error small" hidden></p>
+        <button class="btn btn--primary" type="submit">Create account</button>
+      </form>
+      <div class="spacer"></div>
+      <p class="switch"><span class="body">Already have an account?</span><a class="title link" href="#signin">Sign in</a></p>
+    </section>
+
+    <!-- Home -->
+    <section class="screen app" data-screen="home" data-tab="home">
+      <div class="content">
+        <div class="home__header">
+          <div class="home__greeting">
+            <p class="body">Welcome back,</p>
+            <h1 class="h-xl" data-bind="firstName">Adrit</h1>
+          </div>
+          <img class="home__logo" src="assets/logo.png" alt="Fabric" />
+        </div>
+        <form class="search" id="home-search">
+          <img src="assets/icon-search.svg" width="20" height="20" alt="" />
+          <input type="search" name="q" placeholder="Search records, doctors, clinics" />
+        </form>
+        <div class="transfers">
+          <h2 class="h-m">Records transfer</h2>
+          <div class="transfer-card">
+            <div class="transfer-card__status label">
+              <span class="transfer-card__state">IN PROGRESS</span>
+              <span>Step 2 of 3</span>
+            </div>
+            <p class="h-m">Brown Health → RI Hospital</p>
+            <p class="small">Your request was sent Nov 4. Most clinics respond within a few days — we’ll follow up for you.</p>
+            <div class="progress"><div class="progress__fill"></div></div>
+            <button class="btn btn--light" type="button" data-open="transfer">View transfer</button>
+          </div>
+        </div>
+        <button class="insurance" type="button" data-open="insurance">
+          <img src="assets/icon-card.svg" width="24" height="24" alt="" />
+          <span class="insurance__text">
+            <span class="title">Insurance card</span>
+            <span class="small">Blue Cross Blue Shield · Tap to show</span>
+          </span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Timeline -->
+    <section class="screen app" data-screen="timeline" data-tab="timeline">
+      <div class="content">
+        <div class="heading heading--tight">
+          <h1 class="h-xl">Timeline</h1>
+          <p class="body">Every visit, result, and record in one place.</p>
+        </div>
+        <p class="filter small" hidden><span></span> <button type="button" class="link small" id="clear-filter">Clear</button></p>
+        <div class="entries" id="entries">
+          <img class="entries__braid" src="assets/thread-braid.svg" width="354" height="512" alt="" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Profile -->
+    <section class="screen app" data-screen="profile" data-tab="profile">
+      <div class="content">
+        <div class="profile__header">
+          <h1 class="h-xl" data-bind="fullNameStacked">Adrit<br />Saha</h1>
+          <a class="icon-btn icon-btn--lg" href="#qr" aria-label="Show my Fabric ID"><img src="assets/icon-qr.svg" width="26" height="26" alt="" /></a>
+        </div>
+        <div class="profile__avatar-row">
+          <div class="avatar"><img src="assets/icon-avatar.svg" width="36" height="36" alt="" /></div>
+          <div class="profile__member">
+            <p class="title">Fabric member</p>
+            <p class="small">Since Nov 2026</p>
+          </div>
+        </div>
+        <div class="details">
+          <div class="details__row"><span>Primary care</span><span>Dr. Patel</span></div>
+          <div class="details__row"><span>Insurance</span><span>Blue Cross Blue Shield</span></div>
+          <div class="details__row"><span>Pharmacy</span><span>CVS · Thayer St</span></div>
+          <div class="details__row"><span>Emergency contact</span><button type="button" class="link body" id="emergency">Add contact</button></div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn--secondary" type="button" id="logout">Log out</button>
+      </div>
+    </section>
+
+    <!-- QR Code -->
+    <section class="screen app" data-screen="qr" data-tab="profile">
+      <div class="content content--center">
+        <a class="qr__top" href="#profile">
+          <img src="assets/icon-back-plain.svg" width="26" height="26" alt="" />
+          <span class="h-m">Your Fabric ID</span>
+        </a>
+        <div class="qr__card">
+          <img class="qr__code" src="assets/qr-code.svg" width="250" height="250" alt="QR code for your Fabric ID" />
+          <p class="h-m" data-bind="fullName">Adrit Saha</p>
+          <p class="label qr__id">FAB-7Q2K-91</p>
+          <p class="small">Show this at check-in to share your records instantly.</p>
+          <p class="label qr__timer">Refreshes in <span id="qr-timer">5:00</span></p>
+        </div>
+        <button class="btn btn--secondary" type="button" data-open="share-link">Share a link with any clinic</button>
+        <div class="note">
+          <img src="assets/icon-lock.svg" width="20" height="20" alt="" />
+          <p class="small">Code refreshes every 5 minutes. You choose what each clinic sees.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom nav (shared) -->
+    <nav class="navbar" id="navbar" hidden>
+      <a href="#timeline" data-tab="timeline"><img src="assets/nav-timeline.svg" width="24" height="24" alt="" /><span class="label">Timeline</span></a>
+      <a href="#home" data-tab="home"><img src="assets/nav-home.svg" width="24" height="24" alt="" /><span class="label">Home</span></a>
+      <a href="#profile" data-tab="profile"><img src="assets/nav-profile.svg" width="24" height="24" alt="" /><span class="label">Profile</span></a>
+    </nav>
+
+    <!-- Bottom sheet (shared) -->
+    <div class="scrim" id="scrim" hidden></div>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden>
+      <button class="sheet__grabber" type="button" aria-label="Close"></button>
+      <div class="sheet__body" id="sheet-body"></div>
+    </div>
+
+    <div class="toast small" id="toast" hidden></div>
+  </div>
+
+  <script src="shared.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

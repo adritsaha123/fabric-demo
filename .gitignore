@@ -1,0 +1,4 @@
+# Private documents: never publish
+*.docx
+*.pdf
+.claude/
