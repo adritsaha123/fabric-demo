@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Momo+Trust+Display&family=Roboto:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="clinic.css" />
+  <link rel="stylesheet" href="clinic.css?v=4" />
 </head>
 <body>
   <div class="app">
@@ -115,8 +115,8 @@
       <div class="spinner" aria-hidden="true"></div>
       <h2 class="h-m">Waiting for the patient</h2>
       <p class="body muted" id="waiting-text"></p>
-      <p class="small muted">If the patient app is open in another tab, approve the request there.</p>
-      <button class="link small" type="button" id="simulate-approve">Patient’s phone isn’t open? Approve on their behalf (demo)</button>
+      <button class="btn btn--primary" type="button" id="simulate-approve">Approve as the patient (demo)</button>
+      <p class="small muted">Or approve it in the patient app, if it’s open in another tab of this browser.</p>
     </div>
     <div id="scan-step-3" hidden>
       <h2 class="h-m">Request declined</h2>
@@ -156,9 +156,9 @@
 
   <div class="toast small" id="toast" hidden></div>
 
-  <script src="shared.js"></script>
-  <script src="packet.js"></script>
-  <script src="export.js"></script>
-  <script src="clinic.js"></script>
+  <script src="shared.js?v=4"></script>
+  <script src="packet.js?v=4"></script>
+  <script src="export.js?v=4"></script>
+  <script src="clinic.js?v=4"></script>
 </body>
 </html>

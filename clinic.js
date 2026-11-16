@@ -114,9 +114,8 @@
   }
   function step(n) { [1, 2, 3].forEach(function (i) { $("#scan-step-" + i).hidden = i !== n; }); }
 
-  $("#scan-form").addEventListener("submit", function (e) {
-    e.preventDefault();
-    var id = $("#fabric-id").value.trim().toUpperCase().replace(/\s+/g, "");
+  function startScan(rawId) {
+    var id = String(rawId).trim().toUpperCase().replace(/\s+/g, "");
     if (id !== D.fabricId) {
       var err = $("#scan-error");
       err.textContent = "No Fabric member found with that ID. Try " + D.fabricId + ".";
@@ -125,12 +124,16 @@
     pendingRequest = Bus.send({ type: "consent-request", clinic: CLINIC, items: D.shareItems.map(function (i) { return i.key; }) });
     $("#waiting-text").textContent = "We sent a request to " + D.patient.name.split(" ")[0] + "’s phone. They choose what " + CLINIC + " can see.";
     step(2);
+  }
+  $("#scan-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    startScan($("#fabric-id").value);
   });
 
   // Demo: no camera, so "scanning" just reads the demo patient's Fabric ID.
   function simulateScan() {
     $("#fabric-id").value = D.fabricId;
-    $("#scan-form").requestSubmit();
+    startScan(D.fabricId);
   }
   $("#simulate-scan").addEventListener("click", simulateScan);
   $("#simulate-scan-qr").addEventListener("click", simulateScan);
